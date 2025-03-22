@@ -144,9 +144,13 @@ Avoid additional space between lines.
         
         # Communicate with the GPT model to get the desired response
         def getResponse(self, prompt) -> str:
+            import os
+            OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
             self.conversation_history.append(prompt)
+            
             headers = {
-                'Authorization': f'Bearer {API_KEY}',
+                'Authorization': f'Bearer {OPENAI_API_KEY}',
                 'Content-Type': 'application/json'
             }
             context = '\n'.join([f"Partner {attr.capitalize()}: {getattr(self.partner, attr)}" for attr in dir(self.partner) if not callable(getattr(self.partner, attr)) and not attr.startswith("__")])

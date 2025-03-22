@@ -1,11 +1,18 @@
 # Initialize Python environment with necessary constants and configurations
 init -1 python:
+    def get_path(path):
+        import renpy
+        return os.path.relpath(path, renpy.config.gamedir)
+    
+    import os
     # Constants for API and model usage
-    API_KEY = "" # replace it with your API key 
-    MODEL_NAME = 'gpt-3.5-turbo-16k-0613' # replace it with your model name
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    MODEL_NAME = 'gpt-4o-mini' # replace it with your model name
 
     # Directory paths for story configurations
-    DIR_PATH = ".../RenPy-AutoScriptPlugin/" # replace it with the absolute path of your plugin
+    rel_path = get_path("DynamicVN/game/RenPy-AutoScriptPlugin")
+    print(rel_path)
+    DIR_PATH = "/home/tony/Desktop/DynamicVN/DynamicVN/game/RenPy-AutoScriptPlugin/" #".../RenPy-AutoScriptPlugin/" # replace it with the absolute path of your plugin
     STORY_CONFIG_PATH = DIR_PATH + "Stories/Cyberpunk-Hacker's-Quest/" # replace it with the path of your story
     
     # Interval for summarization (can be adjusted as needed)
@@ -63,6 +70,7 @@ init -1 python:
         for attr in dir(persistent):
             if not callable(attr) and not attr.startswith("_"):
                 setattr(persistent, attr, None)
+
         open(SAVE_FILE_CONVERS, 'w+').close()
         open(SAVE_FILE_PARTNER, 'w+').close()
         return
