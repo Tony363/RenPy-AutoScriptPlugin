@@ -71,7 +71,8 @@ init python:
                 self.DIALOG_PREFIX: self.parse_dialog,
                 self.NARRATION_PREFIX: self.parse_narration,
                 self.MENU_PREFIX: self.parse_menu,
-                self.MODIFY_ATTRIBUTES_PREFIX: self.parse_attribute_modifications
+                self.MODIFY_ATTRIBUTES_PREFIX: self.parse_attribute_modifications,
+                "*Image*": self.parse_image
             }
             if not response:
                 return "Continue the story from where it left off."
@@ -81,7 +82,6 @@ init python:
             parts = sanitized_response.split("\n\n")
             for part in parts:
                 lines = part.split("\n")
-                print(lines)
                 if lines[0] in parsers:
                     result = parsers[lines[0]](lines)  # Calling the appropriate parser function
                     if result:  # If the parser returns a result, we return it
@@ -96,6 +96,14 @@ init python:
                             self._process_text(char_dialog, char_name)
                 # If no specific parser was triggered, return the default string
             return "Continue the story from where it left off."
+
+        def parse_image(self, lines):
+            """Parse image lines and display the image."""
+            for line in lines[1:]:
+                if line.startswith('(Image: '):
+                    image_path = line.split('(Image: ')[1].split(')')[0]
+                    # Use the show_scene_image function to display the image
+                    renpy.python.py_eval("show_scene_image")(image_path)
 
         def parse_dialog(self, lines):
             """Parse dialog lines."""

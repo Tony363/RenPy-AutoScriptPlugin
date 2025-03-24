@@ -7,6 +7,7 @@ init -1 python:
     import os
     # Constants for API and model usage
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
     MODEL_NAME = 'gpt-4o-mini' # replace it with your model name
 
     # Directory paths for story configurations
@@ -180,7 +181,7 @@ label CreateAutoCharacter:
 label StartGame:
     # Initialize and run the GPT script
     $ persistent.story_theme = STORY_CONFIG_PATH
-    $ gameGPT = AutoScriptGPT(player=player, partner=partner_character)
+    $ gameGPT = AutoScriptGPT(player=player, partner=partner_character, images_dir=images_dir, placeholder=placeholder, GEMINI_API_KEY=GEMINI_API_KEY, ssl_context=ssl_context)
     # Display the autoscript preference screen
     show screen autoscript_preference(character=partner_character)
     "Starting the game..."
