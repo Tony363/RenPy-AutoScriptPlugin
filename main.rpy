@@ -20,9 +20,6 @@ init -1 python:
     images_dir = DIR_PATH + "generated_images/"
     placeholder = "images/placeholder.png" # Changed to a standard Ren'Py image path
     
-    # Also define the cache images directory for easier access
-    cache_images_dir = os.path.join("cache", "images")
-    
     # Create the images directory if it doesn't exist
     if not os.path.exists(images_dir):
         os.makedirs(images_dir)
@@ -69,85 +66,6 @@ init -1 python:
         for key, value in data.items():
             setattr(obj, key, value)
         return obj
-        
-    def show_scene_image(image_path):
-        """Display an image as a background scene."""
-        try:
-            # Debug output
-            print(f"Attempting to show image: {image_path}")
-            
-            # Check if the image exists in the cache directory
-            if image_path and os.path.exists(image_path):
-                # Image exists at the provided path
-                print(f"Image exists at path: {image_path}")
-                
-                # Convert absolute path to relative path that Ren'Py can use
-                if os.path.isabs(image_path):
-                    # For absolute paths, make them relative to the game directory
-                    if image_path.startswith(renpy.config.gamedir):
-                        rel_path = os.path.relpath(image_path, renpy.config.gamedir)
-                        print(f"Converted absolute path to relative: {rel_path}")
-                    else:
-                        # Path is outside the game directory, use the filename only
-                        filename = os.path.basename(image_path)
-                        cache_path = os.path.join(cache_images_dir, filename)
-                        if renpy.loadable(cache_path):
-                            rel_path = cache_path
-                            print(f"Using cache path: {rel_path}")
-                        else:
-                            rel_path = placeholder
-                            print(f"Using placeholder (1): {rel_path}")
-                else:
-                    # For relative paths, check if they're loadable
-                    if renpy.loadable(image_path):
-                        rel_path = image_path
-                        print(f"Using loadable path: {rel_path}")
-                    else:
-                        # Try to find the image in the cache directory
-                        filename = os.path.basename(image_path)
-                        cache_path = os.path.join(cache_images_dir, filename)
-                        if renpy.loadable(cache_path):
-                            rel_path = cache_path
-                            print(f"Using cache path: {rel_path}")
-                        else:
-                            rel_path = placeholder
-                            print(f"Using placeholder (2): {rel_path}")
-            else:
-                # Image doesn't exist at the provided path, try to find it in the cache
-                if image_path:
-                    filename = os.path.basename(image_path)
-                    cache_path = os.path.join(cache_images_dir, filename)
-                    if renpy.loadable(cache_path):
-                        rel_path = cache_path
-                        print(f"Using cache path: {rel_path}")
-                    else:
-                        rel_path = placeholder
-                        print(f"Using placeholder (3): {rel_path}")
-                else:
-                    rel_path = placeholder
-                    print(f"Using placeholder (4): {rel_path}")
-            
-            # Display the image
-            renpy.scene()
-            renpy.show(rel_path)
-            print(f"Successfully showed image: {rel_path}")
-            
-        except Exception as e:
-            print(f"Error in show_scene_image: {e}")
-            # Fallback to placeholder
-            try:
-                renpy.scene()
-                renpy.show(placeholder)
-                print(f"Showed placeholder after error")
-            except Exception as e:
-                print(f"Error showing placeholder: {e}")
-                # Last resort - black background
-                try:
-                    renpy.scene()
-                    renpy.show("bg black")
-                    print("Showed black background as fallback")
-                except:
-                    print("Failed to show even a black background")
     
     # Save the current game state
     def save_game():
@@ -170,11 +88,6 @@ init -1 python:
         return
 
 
-# Define transforms for positioning
-transform center_position:
-    xalign 0.5
-    yalign 0.5
-
 # Default values for player and partner names
 default player_name = None
 default partner_name = None
@@ -186,10 +99,6 @@ define partner = Character("[partner_name]", color="#2e0d3d")
 
 # UI components for the game
 init -1:
-    # Screen for displaying generated scene images
-    screen scene_image(image_path):
-        add im.Scale(image_path, config.screen_width, config.screen_height) at center_position
-        
     # Screen for auto script preferences
     screen autoscript_preference(character):
         hbox:
