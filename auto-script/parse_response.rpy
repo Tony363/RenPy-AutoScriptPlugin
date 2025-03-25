@@ -81,6 +81,7 @@ init python:
             # Split response into distinct parts and apply the respective parser based on the header
             parts = sanitized_response.split("\n\n")
             for part in parts:
+                print(part)
                 lines = part.split("\n")
                 if lines[0] in parsers:
                     result = parsers[lines[0]](lines)  # Calling the appropriate parser function
@@ -99,11 +100,62 @@ init python:
 
         def parse_image(self, lines):
             """Parse image lines and display the image."""
-            for line in lines[1:]:
-                if line.startswith('(Image: '):
+            print("PARSING IMAGE", lines)
+            
+            # First, check if there's an image path in the format (Image: path) in any of the lines
+            for line in lines:
+                if '(Image: ' in line:
                     image_path = line.split('(Image: ')[1].split(')')[0]
-                    # Use the show_scene_image function to display the image
-                    renpy.python.py_eval("show_scene_image")(image_path)
+                    print("SHOWING SCENE FROM - ", image_path)
+                    
+                    # Make sure the image path exists
+                    if os.path.exists(image_path):
+                        print(f"Image exists at: {image_path}")
+                        # Directly call the show_scene_image function to display the image
+                        show_scene_image(image_path)
+                        return None  # Don't return anything to continue the dialog flow
+                    else:
+                        print(f"Image does not exist at: {image_path}")
+                        # Try to find the image in the cache directory
+                        filename = os.path.basename(image_path)
+                        cache_path = os.path.join(renpy.config.gamedir, "cache", "images", filename)
+                        if os.path.exists(cache_path):
+                            print(f"Found image in cache: {cache_path}")
+                            show_scene_image(cache_path)
+                            return None
+                        else:
+                            print(f"Image not found in cache either: {cache_path}")
+            
+            # If we get here, no image path was found in the format (Image: path)
+            # Let's check if there's an image path in the response itself
+            if len(lines) > 1:
+                # The second line (index 1) should be the image path or prompt
+                image_prompt = lines[1]
+                print(f"Using text as image prompt: {image_prompt}")
+                
+                # Try to find an image in the cache directory that matches this prompt
+                # Create a safe filename from the prompt
+                safe_filename = '_'.join(image_prompt.split(' ')[:6])
+                safe_filename = ''.join(c if c.isalnum() or c == '_' else '_' for c in safe_filename)
+                cache_path = os.path.join(renpy.config.gamedir, "cache", "images", f"image_{safe_filename}.png")
+                
+                if os.path.exists(cache_path):
+                    print(f"Found matching image in cache: {cache_path}")
+                    show_scene_image(cache_path)
+                    return None
+                
+                # If we still can't find an image, look for any image with a similar name
+                cache_dir = os.path.join(renpy.config.gamedir, "cache", "images")
+                if os.path.exists(cache_dir):
+                    for filename in os.listdir(cache_dir):
+                        if filename.startswith("image_") and any(word in filename for word in safe_filename.split('_') if len(word) > 3):
+                            cache_path = os.path.join(cache_dir, filename)
+                            print(f"Found similar image in cache: {cache_path}")
+                            show_scene_image(cache_path)
+                            return None
+            
+            # If we still can't find an image, just return None to continue the dialog flow
+            return None
 
         def parse_dialog(self, lines):
             """Parse dialog lines."""

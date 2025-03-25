@@ -92,15 +92,20 @@ Avoid additional space between lines.
             while self.is_running:
                 narrator("Click the next button and wait for a minute...")
                 
+                # Parse the dialog and get user input first
+                op = self.parser.parse_auto_dialog(res)
+                
                 # Extract image prompt and generate image if available
                 image_prompt = self.extract_image_prompt(res)
+                print("IMAGE PROMPT\n",image_prompt)
                 if image_prompt:
+                    print(f"Extracted image prompt: {image_prompt}")
                     image_path = self.fetch_image(image_prompt)
-                    # Add image information to the response
-                    res = res + f"\n\n*Image*\n(Image: {image_path})"
-                
-                # Parse the dialog and get user input
-                op = self.parser.parse_auto_dialog(res)
+                    print(f"Generated image at: {image_path}")
+                    
+                    # Display the image directly using show_scene_image
+                    print(f"Displaying image directly: {image_path}")
+                    show_scene_image(image_path)
                 
                 # Get the next response
                 res = self.getResponse(op)
@@ -229,7 +234,7 @@ Avoid additional space between lines.
             self,
             prompt:str, 
             output_file:str='gemini-native-image.png'
-        )->None:
+        )->str:
             """
             Generate an image using the Gemini API and save it to a file.
 
@@ -237,10 +242,35 @@ Avoid additional space between lines.
             - api_key (str): The API key for accessing the Gemini API.
             - prompt (str): The text prompt for generating the image.
             - output_file (str): The name of the file to save the image to. Default is 'gemini-native-image.png'.
+            
+            Returns:
+            - str: The path to the generated image file
             """
-            output_file = os.path.join(self.images_dir, f"image_{'_'.join(prompt.split(' ')[:6])}.png")
+            # Create a safe filename from the prompt
+            safe_filename = '_'.join(prompt.split(' ')[:6])
+            safe_filename = ''.join(c if c.isalnum() or c == '_' else '_' for c in safe_filename)
+            
+            # Ensure the images directory exists
+            if not os.path.exists(self.images_dir):
+                os.makedirs(self.images_dir)
+                
+            # Try to save to the cache directory first (for better compatibility)
+            cache_dir = os.path.join(renpy.config.gamedir, "cache", "images")
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+                
+            # Create the full output path in the cache directory
+            output_file = os.path.join(cache_dir, f"image_{safe_filename}.png")
+            
+            # Debug output
+            print(f"Generating image for prompt: {prompt}")
+            print(f"Output file path: {output_file}")
+            
+            # If the file already exists, return its path
             if os.path.exists(output_file):
+                print(f"Image already exists at: {output_file}")
                 return output_file
+                
             # Construct the URL with the API key
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key={self.GEMINI_API_KEY}"
             
@@ -274,26 +304,31 @@ Avoid additional space between lines.
             response_json = json.loads(response_data)
             response_json_data = response_json['candidates'][0]['content']['parts'][0]['inlineData']['data']
         
-            image_data = response_json_data
+            image_data = response_json_data  # Fixed typo: was response_json_datas
             # Decode base64 and save to file
             with open(output_file, 'wb') as f:
                 f.write(base64.b64decode(image_data))
             print(f"Image saved as '{output_file}'")
             return output_file
 
-        @staticmethod
-        def get_image(path):
+        def get_image(self, path):
             import renpy
+            print(f"Getting image path for: {path}")
             if os.path.isabs(path):
                 if os.path.exists(path) and path.startswith(renpy.config.gamedir):
-                    return os.path.relpath(path, renpy.config.gamedir)
+                    rel_path = os.path.relpath(path, renpy.config.gamedir)
+                    print(f"Converted absolute path to relative: {rel_path}")
+                    return rel_path
                 else:
-                    return "cache/images/placeholder.png"
+                    print(f"Using placeholder (1): {self.placeholder}")
+                    return self.placeholder
             else:
                 if renpy.loadable(path):
+                    print(f"Path is loadable: {path}")
                     return path
                 else:
-                    return "cache/images/placeholder.png"
+                    print(f"Using placeholder (2): {self.placeholder}")
+                    return self.placeholder
                 
 # # RenPy persistent data setup
 # init -2 python:
