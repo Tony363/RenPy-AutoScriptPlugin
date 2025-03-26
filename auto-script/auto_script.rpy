@@ -231,132 +231,135 @@ Avoid additional space between lines.
         def getResponse(self, prompt) -> str:
             import os
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-
+            
+            if not OPENAI_API_KEY:
+                print("OPENAI_API_KEY environment variable not set")
+                narrator("API key not found. Please set the OPENAI_API_KEY environment variable.")
+                return ""
+                
             self.conversation_history.append(prompt)
             
+            # Prepare request data
             headers = {
                 'Authorization': f'Bearer {OPENAI_API_KEY}',
                 'Content-Type': 'application/json'
             }
-            context = '\n'.join([f"Partner {attr.capitalize()}: {getattr(self.partner, attr)}" for attr in dir(self.partner) if not callable(getattr(self.partner, attr)) and not attr.startswith("__")])
+            
+            # Create context from partner attributes
+            partner_attrs = [attr for attr in dir(self.partner) 
+                            if not callable(getattr(self.partner, attr)) 
+                            and not attr.startswith("__")]
+            context = '\n'.join([f"Partner {attr.capitalize()}: {getattr(self.partner, attr)}" 
+                                for attr in partner_attrs])
+            
+            # Prepare request payload
             data = {
                 "model": MODEL_NAME,
                 'messages': [{'role': 'system', 'content': context}]
             }
             data['messages'].extend([{'role': 'user', 'content': message} for message in self.conversation_history])
-            try:
-                response = requests.post('https://api.openai.com/v1/chat/completions', headers=headers, json=data)
-                response.raise_for_status()
+            
+            # Make API request
+            response = requests.post('https://api.openai.com/v1/chat/completions', headers=headers, json=data)
+            
+            # Handle response
+            if response.status_code == 200:
                 return response.json()['choices'][0]['message']['content']
-            except requests.HTTPError as http_err:
-                print(f"HTTP error occurred: {http_err}")
-                self.conversation_history.pop()
+            else:
+                print(f"API error: {response.status_code} - {response.text}")
+                self.conversation_history.pop()  # Remove the failed prompt
                 narrator("An error occurred while communicating with the GPT model. Please try again.")
                 return ""
-            except Exception as err:
-                self.conversation_history.pop()
-                print(f"Other error occurred: {err}")
-                return ""
 
-        def fetch_image(
-            self,
-            prompt:str, 
-            output_file:str='gemini-native-image.png'
-        )->str:
+        def fetch_image(self, prompt:str)->str:
             """
             Generate an image using the Gemini API and save it to a file.
 
             Parameters:
-            - api_key (str): The API key for accessing the Gemini API.
             - prompt (str): The text prompt for generating the image.
-            - output_file (str): The name of the file to save the image to. Default is 'gemini-native-image.png'.
             
             Returns:
             - str: The path to the generated image file
             """
+            if not self.GEMINI_API_KEY:
+                print("GEMINI_API_KEY not available")
+                return self.placeholder
+                
             # Create a safe filename from the prompt
             safe_filename = '_'.join(prompt.split(' ')[:6])
             safe_filename = ''.join(c if c.isalnum() or c == '_' else '_' for c in safe_filename)
             
-            # Ensure the images directory exists
-            if not os.path.exists(self.images_dir):
-                os.makedirs(self.images_dir)
-                
-            # Try to save to the cache directory first (for better compatibility)
+            # Ensure cache directory exists
             cache_dir = os.path.join(renpy.config.gamedir, "cache", "images")
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-                
+            os.makedirs(cache_dir, exist_ok=True)
+            
             # Create the full output path in the cache directory
             output_file = os.path.join(cache_dir, f"image_{safe_filename}.png")
-            
-            # Debug output
-            print(f"Generating image for prompt: {prompt}")
-            print(f"Output file path: {output_file}")
             
             # If the file already exists, return its path
             if os.path.exists(output_file):
                 print(f"Image already exists at: {output_file}")
                 return output_file
                 
-            # Construct the URL with the API key
+            print(f"Generating image for prompt: {prompt}")
+            
+            # Prepare API request
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key={self.GEMINI_API_KEY}"
             
-            # Create the JSON payload
             payload = {
                 "contents": [{
-                    "parts": [
-                        {"text": prompt}
-                    ]
+                    "parts": [{"text": prompt}]
                 }],
                 "generationConfig": {
                     "responseModalities": ["Text", "Image"]
                 }
             }
             
-            # Convert payload to JSON string and encode to bytes
+            # Make the request
             data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+                url, 
+                data=data, 
+                headers={'Content-Type': 'application/json'}, 
+                method='POST'
+            )
             
-            # Create the request object
-            req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
-            
-            # Send the request and get the response
-            with urllib.request.urlopen(req, context=self.ssl_context) as response:
-                if response.status != 200:
-                    print(f"Error: {response.status}")
-                    return self.placeholder
-                # Read and decode the response
-                response_data = response.read().decode('utf-8')
-                
-            # Parse the JSON response
-            response_json = json.loads(response_data)
-            response_json_data = response_json['candidates'][0]['content']['parts'][0]['inlineData']['data']
-        
-            image_data = response_json_data  # Fixed typo: was response_json_datas
-            # Decode base64 and save to file
-            with open(output_file, 'wb') as f:
-                f.write(base64.b64decode(image_data))
-            print(f"Image saved as '{output_file}'")
-            return output_file
+            # Process the response
+            try:
+                with urllib.request.urlopen(req, context=self.ssl_context) as response:
+                    if response.status != 200:
+                        print(f"Error: {response.status}")
+                        return self.placeholder
+                        
+                    response_data = response.read().decode('utf-8')
+                    response_json = json.loads(response_data)
+                    image_data = response_json['candidates'][0]['content']['parts'][0]['inlineData']['data']
+                    
+                    # Save the image
+                    with open(output_file, 'wb') as f:
+                        f.write(base64.b64decode(image_data))
+                    
+                    print(f"Image saved as '{output_file}'")
+                    return output_file
+            except Exception as e:
+                print(f"Error generating image: {e}")
+                return self.placeholder
 
         def get_image(self, path):
+            """Convert image path to a format Ren'Py can use"""
             import renpy
-            print(f"Getting image path for: {path}")
+            
+            # Handle absolute paths
             if os.path.isabs(path):
                 if os.path.exists(path) and path.startswith(renpy.config.gamedir):
-                    rel_path = os.path.relpath(path, renpy.config.gamedir)
-                    print(f"Converted absolute path to relative: {rel_path}")
-                    return rel_path
-                else:
-                    print(f"Using placeholder (1): {self.placeholder}")
-                    return self.placeholder
-            else:
-                if renpy.loadable(path):
-                    print(f"Path is loadable: {path}")
-                    return path
-                else:
-                    print(f"Using placeholder (2): {self.placeholder}")
-                    return self.placeholder
+                    # Convert to relative path for Ren'Py
+                    return os.path.relpath(path, renpy.config.gamedir)
+                return self.placeholder
+                
+            # Handle relative paths
+            if renpy.loadable(path):
+                return path
+            return self.placeholder
                 
 # # RenPy persistent data setup
 # init -2 python:
