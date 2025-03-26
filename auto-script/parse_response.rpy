@@ -30,6 +30,7 @@ init python:
         def __init__(self, player, partner):
             self.player = player
             self.partner = partner
+            self.current_speaker = None
         
         def sanitize_text(self, text):
             """Sanitize text for consistent parsing."""
@@ -52,19 +53,32 @@ init python:
                 text = text.replace(key, value)        
             return text
 
-        def _process_text(self, line, char_name=None):
+        def _process_text(self, line, char_name=None, avatar_files=None):
             """Helper function to process dialog or narration lines."""
             sentences = split_into_sentences(line)
+            
+            # Show appropriate character avatar based on who is speaking
             if char_name:
+                # Handle character-specific avatar display
+                if char_name == self.partner.name and avatar_files and "Partner" in avatar_files:
+                    # Show partner avatar
+                    renpy.show_screen("partner_avatar", avatar_files=avatar_files)
+                    self.current_speaker = char_name
+                elif char_name != self.player.name and char_name != "Player":
+                    # For any other NPC, we could show a generic NPC avatar if available
+                    pass
+                
+                # Process the text
                 for sentence in sentences:
                     if ('modify' in char_name.lower()) >= 0:
                         continue
                     renpy.say(who=char_name, what=sentence)
             else:
+                # For narration
                 for sentence in sentences:
                     narrator(sentence)
 
-        def parse_auto_dialog(self, response):
+        def parse_auto_dialog(self, response, avatar_files=None):
             """Main parsing function to process the auto dialog script."""
             # Dictionary mapping prefixes to their corresponding parser functions
             parsers = {
@@ -81,26 +95,24 @@ init python:
             # Split response into distinct parts and apply the respective parser based on the header
             parts = sanitized_response.split("\n\n")
             for part in parts:
-                print(part)
                 lines = part.split("\n")
                 if lines[0] in parsers:
-                    result = parsers[lines[0]](lines)  # Calling the appropriate parser function
+                    result = parsers[lines[0]](lines, avatar_files)  # Calling the appropriate parser function with avatar_files
                     if result:  # If the parser returns a result, we return it
                         return result
                 else:
                     for line in lines:
                         if line.find(':') == -1 and line != '(Narration)' and line != '*Narration Continues*' and line != 'None':
                             if line != '*dialog*' and line != '*narration*':
-                                self._process_text(line)
+                                self._process_text(line, None, avatar_files)
                         else:
                             char_name, _, char_dialog = line.partition(':')
-                            self._process_text(char_dialog, char_name)
+                            self._process_text(char_dialog, char_name, avatar_files)
                 # If no specific parser was triggered, return the default string
             return "Continue the story from where it left off."
 
-        def parse_image(self, lines):
+        def parse_image(self, lines, avatar_files=None):
             """Parse image lines but don't display the image (it's already displayed in auto_script.rpy)."""
-            print("PARSING IMAGE", lines)
             
             # We don't need to display the image here since it's already displayed in auto_script.rpy
             # This function is kept for compatibility and logging purposes
@@ -108,9 +120,7 @@ init python:
             # First, check if there's an image path in the format (Image: path) in any of the lines
             for line in lines:
                 if '(Image: ' in line:
-                    image_path = line.split('(Image: ')[1].split(')')[0]
-                    print("IMAGE PATH FOUND - ", image_path)
-                    
+                    image_path = line.split('(Image: ')[1].split(')')[0]                    
                     # Just log if the image exists but don't display it
                     if os.path.exists(image_path):
                         print(f"Image exists at: {image_path}")
@@ -142,19 +152,19 @@ init python:
             # Just return None to continue the dialog flow
             return None
 
-        def parse_dialog(self, lines):
+        def parse_dialog(self, lines, avatar_files=None):
             """Parse dialog lines."""
             for line in lines[1:]:
                 char_name, _, char_dialog = line.partition(':')
                 char_name = char_name or self.player.name
-                self._process_text(char_dialog, char_name)
+                self._process_text(char_dialog, char_name, avatar_files)
 
-        def parse_narration(self, lines):
+        def parse_narration(self, lines, avatar_files=None):
             """Parse narration lines."""
             for line in lines[1:]:
-                self._process_text(line)
+                self._process_text(line, None, avatar_files)
 
-        def parse_menu(self, lines):
+        def parse_menu(self, lines, avatar_files=None):
             """Parse menu options and return player's choice."""
             player_options = [(line.split('. ')[1], line.split('. ')[1]) for line in lines[1:] if '. ' in line]
             if player_options:
@@ -165,7 +175,7 @@ init python:
                     return user_input.strip() if user_input else None
                 return choice
 
-        def parse_attribute_modifications(self, lines):
+        def parse_attribute_modifications(self, lines, avatar_files=None):
             """Parse attribute modifications like 'increase' or 'decrease'."""
             for line in lines[1:]:
                 line = line.lstrip('-')

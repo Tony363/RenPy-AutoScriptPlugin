@@ -31,6 +31,18 @@ init python:
             self.placeholder = placeholder
             self.GEMINI_API_KEY = GEMINI_API_KEY
             self.ssl_context = ssl_context
+            
+            # Dictionary to store avatar file paths
+            self.avatar_files = {}
+            
+            # Define avatar prompts for each character
+            self.avatar_prompts = {
+                "player": f"A portrait of {self.player.name}, a brave adventurer. Style: medieval fantasy, detailed illustration.",
+                "partner": f"A portrait of {self.partner.name}. Style: medieval fantasy, detailed illustration."
+            }
+            
+            # Generate and store avatar images
+            self.generate_avatars()
 
         # Load game configuration from the provided files
         def load_config(self):
@@ -38,6 +50,19 @@ init python:
                 self.ending_config = json.load(f)
             with open(STORY_INSTRUCTIONS_FILE, "r") as f:
                 self.story_instructions = f.read().format(self=self)
+                
+        # Generate avatar images for characters
+        def generate_avatars(self):
+            # Generate player avatar
+            player_avatar_path = self.fetch_image(self.avatar_prompts["player"])
+            self.avatar_files["Player"] = self.get_image(player_avatar_path)
+            
+            # Generate partner avatar
+            partner_avatar_path = self.fetch_image(self.avatar_prompts["partner"])
+            self.avatar_files["Partner"] = self.get_image(partner_avatar_path)
+            
+            # Show the player avatar screen
+            renpy.show_screen("player_avatar", avatar_files=self.avatar_files)
                 
         # Generate the initial prompt for the game based on the loaded configurations
         def generate_initial_prompt(self):
@@ -104,8 +129,11 @@ Avoid additional space between lines.
                     print(f"Displaying image directly: {image_path}")
                     show_scene_image(image_path)
                 
+                # Make sure player avatar is shown
+                renpy.show_screen("player_avatar", avatar_files=self.avatar_files)
+                
                 # Parse the dialog and get user input AFTER showing the image
-                op = self.parser.parse_auto_dialog(res)
+                op = self.parser.parse_auto_dialog(res, self.avatar_files)
                 
                 # Get the next response
                 res = self.getResponse(op)

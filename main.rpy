@@ -14,7 +14,7 @@ init -1 python:
     # Directory paths for story configurations
     rel_path = get_path("DynamicVN/game/RenPy-AutoScriptPlugin")
     DIR_PATH = "/home/tony/Desktop/DynamicVN/DynamicVN/game/RenPy-AutoScriptPlugin/" #".../RenPy-AutoScriptPlugin/" # replace it with the absolute path of your plugin
-    STORY_CONFIG_PATH = DIR_PATH + "Stories/Cyberpunk-Hacker's-Quest/" # replace it with the path of your story
+    STORY_CONFIG_PATH = DIR_PATH + "Stories/CFantasy1/" # replace it with the path of your story
     
     # Directory for generated images and placeholder image
     images_dir = DIR_PATH + "generated_images/"
