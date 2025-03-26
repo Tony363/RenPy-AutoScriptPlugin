@@ -92,10 +92,7 @@ Avoid additional space between lines.
             while self.is_running:
                 narrator("Click the next button and wait for a minute...")
                 
-                # Parse the dialog and get user input first
-                op = self.parser.parse_auto_dialog(res)
-                
-                # Extract image prompt and generate image if available
+                # Extract image prompt and generate image if available FIRST
                 image_prompt = self.extract_image_prompt(res)
                 print("IMAGE PROMPT\n",image_prompt)
                 if image_prompt:
@@ -103,9 +100,12 @@ Avoid additional space between lines.
                     image_path = self.fetch_image(image_prompt)
                     print(f"Generated image at: {image_path}")
                     
-                    # Display the image directly using show_scene_image
+                    # Display the image directly using show_scene_image BEFORE parsing dialog
                     print(f"Displaying image directly: {image_path}")
                     show_scene_image(image_path)
+                
+                # Parse the dialog and get user input AFTER showing the image
+                op = self.parser.parse_auto_dialog(res)
                 
                 # Get the next response
                 res = self.getResponse(op)
